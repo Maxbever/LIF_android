@@ -1,0 +1,20 @@
+[package]
+name = "lif_android"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+rustupolis_server = "0.0.1"
+jni = "0.5.2"
+android_logger = "0.11.0"
+log = "0.4.8"
+
+[lib]
+name = "lif_android"
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib", "lib"]
+
+[[test]]
+name = "test_server"
+path = "tests/test_server.rs"
