@@ -3,6 +3,9 @@ package com.example.rust_application;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -20,6 +23,8 @@ import com.google.android.gms.tasks.OnSuccessListener;
 
 public class MainActivity extends AppCompatActivity {
     private FusedLocationProviderClient fusedLocationClient;
+    int LOCATION_REFRESH_TIME = 1500; // 1,5 seconds to update
+    int LOCATION_REFRESH_DISTANCE = 50; // 50 meters to update
 
     static {
         System.loadLibrary("lif_android");
@@ -61,22 +66,30 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             }
                     );
-
-            // Before you perform the actual permission request, check whether your app
-            // already has the permissions, and whether your app needs to show a permission
-            // rationale dialog. For more details, see Request permissions.
             locationPermissionRequest.launch(new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION
             });
         }
+
+        LocationManager mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_REFRESH_TIME,
+                LOCATION_REFRESH_DISTANCE, mLocationListener);
+
+        new ConnectTask().execute("");
         fusedLocationClient.getLastLocation()
                 .addOnSuccessListener(this, new OnSuccessListener<Location>() {
                     @Override
                     public void onSuccess(Location location) {
                         // Got last known location. In some rare situations this can be null.
                         if (location != null) {
-                            Log.println(Log.VERBOSE, "LOCA2",location.toString());
+                            Log.println(Log.VERBOSE, "LOCA2", location.toString());
+                            if (mTcpClient != null) {
+                                mTcpClient.sendMessage("attach GPS_DATA admin");
+
+                                mTcpClient.sendMessage("out ("+location.getLatitude()+","+location.getLongitude()+")");
+                            }
                         }
                     }
                 });
@@ -87,4 +100,51 @@ public class MainActivity extends AppCompatActivity {
      * which is packaged with this application.
      */
     public static native void main();
+
+    TcpClient mTcpClient;
+
+    public class ConnectTask extends AsyncTask<String, String, TcpClient> implements TcpClient.OnMessageReceived {
+
+        @Override
+        protected TcpClient doInBackground(String... message) {
+
+            //we create a TCPClient object
+            mTcpClient = new TcpClient(new TcpClient.OnMessageReceived() {
+                @Override
+                //here the messageReceived method is implemented
+                public void messageReceived(String message) {
+                    //this method calls the onProgressUpdate
+                    publishProgress(message);
+                }
+            });
+            mTcpClient.run();
+
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(String... values) {
+            super.onProgressUpdate(values);
+            //response received from server
+            Log.d("LOCA2", "response " + values[0]);
+            //process server response here....
+
+        }
+
+        @Override
+        public void messageReceived(String message) {
+            Log.d("LOCA2", "response :" + message);
+        }
+    }
+
+    private final LocationListener mLocationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(final Location location) {
+            Log.println(Log.VERBOSE, "LOCA2", location.toString());
+            if (mTcpClient != null) {
+                mTcpClient.sendMessage("attach GPS_DATA admin");
+                mTcpClient.sendMessage("out ("+location.getLatitude()+","+location.getLongitude()+")");
+            }
+        }
+    };
 }

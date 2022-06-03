@@ -13,7 +13,7 @@ pub extern "C" fn Java_com_example_rust_1application_MainActivity_main(    _env:
                                                                            _callback: JObject) {
     android_logger::init_once(Config::default().with_min_level(Level::Trace));
 
-    let ip_address = String::from("192.168.1.139");
+    let ip_address = String::from("192.168.0.4");
     let port_tcp = String::from("9000");
     let port_udp = String::from("9001");
 
