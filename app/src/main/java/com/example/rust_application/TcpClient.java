@@ -13,7 +13,6 @@ import java.net.Socket;
 public class TcpClient {
 
     public static final String TAG = "LOCA2";
-    public static final String SERVER_IP = "192.168.0.4"; //server IP address
     public static final int SERVER_PORT = 9000;
     // message to send to the server
     private String mServerMessage;
@@ -25,12 +24,14 @@ public class TcpClient {
     private PrintWriter mBufferOut;
     // used to read messages from the server
     private BufferedReader mBufferIn;
+    private final String ipAddress;
 
     /**
      * Constructor of the class. OnMessagedReceived listens for the messages received from server
      */
-    public TcpClient(OnMessageReceived listener) {
+    public TcpClient(OnMessageReceived listener, String ipAddressParams) {
         mMessageListener = listener;
+        ipAddress= ipAddressParams;
     }
 
     /**
@@ -77,7 +78,7 @@ public class TcpClient {
 
         try {
             //here you must put your computer's IP address.
-            InetAddress serverAddr = InetAddress.getByName(SERVER_IP);
+            InetAddress serverAddr = InetAddress.getByName(ipAddress);
 
             Log.d("TCP Client", "C: Connecting...");
 

@@ -7,7 +7,7 @@
     android:theme="@style/Theme.AppCompat.DayNight">
 
     <TextView
-        android:id="@+id/sample_text"
+        android:id="@+id/getIPAddress"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"

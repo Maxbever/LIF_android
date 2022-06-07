@@ -609,9 +609,9 @@ dependencies = [
 
 [[package]]
 name = "rustupolis_server"
-version = "0.0.2"
+version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83442b1779f216471df369e69d4bee9c85986457f4b166ce244bbb3975242490"
+checksum = "255ad79f71d697e0ff0f90db01eff6bbb57e31f38f0ef7e60557295b7051fc31"
 dependencies = [
  "crossbeam",
  "error-chain 0.12.4",

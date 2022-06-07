@@ -1,13 +1,21 @@
 package com.example.rust_application;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.format.Formatter;
 import android.util.Log;
 import android.widget.TextView;
 
@@ -21,27 +29,37 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnSuccessListener;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
     private FusedLocationProviderClient fusedLocationClient;
-    int LOCATION_REFRESH_TIME = 1500; // 1,5 seconds to update
-    int LOCATION_REFRESH_DISTANCE = 50; // 50 meters to update
+    private SensorManager sensorManager;
+    private Sensor pressure;
+    private TcpClient mTcpClient;
+    private float light;
+    private String ipAddress;
 
     static {
         System.loadLibrary("lif_android");
     }
 
-    TextView textView;
+    TextView textViewIpAddress;
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        textView = findViewById(R.id.sample_text);
+        textViewIpAddress = findViewById(R.id.getIPAddress);
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        pressure = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
+
+        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+        ipAddress = Formatter.formatIpAddress(wifiManager.getConnectionInfo().getIpAddress());
+        textViewIpAddress.setText("Your Device IP Address: " + ipAddress);
 
         Thread thread = new Thread() {
             public void run() {
-                main();
+                main(ipAddress);
             }
         };
 
@@ -72,36 +90,64 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        LocationManager mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_REFRESH_TIME,
-                LOCATION_REFRESH_DISTANCE, mLocationListener);
-
         new ConnectTask().execute("");
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        // Got last known location. In some rare situations this can be null.
-                        if (location != null) {
-                            Log.println(Log.VERBOSE, "LOCA2", location.toString());
-                            if (mTcpClient != null) {
-                                mTcpClient.sendMessage("attach GPS_DATA admin");
 
-                                mTcpClient.sendMessage("out ("+location.getLatitude()+","+location.getLongitude()+")");
-                            }
-                        }
+        Thread thread_location = new Thread() {
+            @SuppressLint("MissingPermission")
+            public void run() {
+                while (true){
+                    fusedLocationClient.getLastLocation()
+                            .addOnSuccessListener(new OnSuccessListener<Location>() {
+                                @Override
+                                public void onSuccess(Location location) {
+                                    // Got last known location. In some rare situations this can be null.
+                                    if (location != null) {
+                                        Log.println(Log.VERBOSE, "LOCA2", location.toString());
+                                        send_data(location.getLatitude(), location.getLongitude());
+                                    }
+                                }
+                            });
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
-                });
+                }
+            }
+        };
+        thread_location.start();
+    }
+
+    @Override
+    protected void onResume() {
+        // Register a listener for the sensor.
+        super.onResume();
+        sensorManager.registerListener(this, pressure, SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    @Override
+    protected void onPause() {
+        // Be sure to unregister the sensor when the activity pauses.
+        super.onPause();
+        sensorManager.unregisterListener(this);
     }
 
     /**
      * A native method that is implemented by the 'rust' native library,
      * which is packaged with this application.
+     * @param ipAddress
      */
-    public static native void main();
+    public static native void main(String ipAddress);
 
-    TcpClient mTcpClient;
+    @Override
+    public final void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Do something here if sensor accuracy changes.
+    }
+
+    @Override
+    public final void onSensorChanged(SensorEvent event) {
+         light = event.values[0];
+    }
 
     public class ConnectTask extends AsyncTask<String, String, TcpClient> implements TcpClient.OnMessageReceived {
 
@@ -116,7 +162,7 @@ public class MainActivity extends AppCompatActivity {
                     //this method calls the onProgressUpdate
                     publishProgress(message);
                 }
-            });
+            }, ipAddress);
             mTcpClient.run();
 
             return null;
@@ -137,14 +183,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private final LocationListener mLocationListener = new LocationListener() {
-        @Override
-        public void onLocationChanged(final Location location) {
-            Log.println(Log.VERBOSE, "LOCA2", location.toString());
-            if (mTcpClient != null) {
-                mTcpClient.sendMessage("attach GPS_DATA admin");
-                mTcpClient.sendMessage("out ("+location.getLatitude()+","+location.getLongitude()+")");
-            }
+    private void send_data(double latitude, double longitude){
+        if (mTcpClient != null) {
+            mTcpClient.sendMessage("attach GPS_DATA admin");
+            mTcpClient.sendMessage("out ("+latitude+","+longitude+","+light+")");
         }
-    };
+    }
 }
