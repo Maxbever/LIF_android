@@ -15,6 +15,7 @@ import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.text.format.Formatter;
 import android.util.Log;
 import android.widget.TextView;
@@ -26,8 +27,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnSuccessListener;
+
+import java.text.MessageFormat;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
     private FusedLocationProviderClient fusedLocationClient;
@@ -36,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private TcpClient mTcpClient;
     private float light;
     private String ipAddress;
+    LocationRequest locationRequest;
 
     static {
         System.loadLibrary("lif_android");
@@ -49,10 +56,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textViewIpAddress = findViewById(R.id.getIPAddress);
-
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         pressure = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-
         WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
         ipAddress = Formatter.formatIpAddress(wifiManager.getConnectionInfo().getIpAddress());
         textViewIpAddress.setText("Your Device IP Address: " + ipAddress);
@@ -64,6 +69,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         };
 
         thread.start();
+
+        new ConnectTask().execute("");
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
@@ -90,32 +97,26 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             });
         }
 
-        new ConnectTask().execute("");
+        locationRequest = locationRequest.create();
+        locationRequest.setInterval(1000);
+        locationRequest.setFastestInterval(50);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
-        Thread thread_location = new Thread() {
-            @SuppressLint("MissingPermission")
-            public void run() {
-                while (true){
-                    fusedLocationClient.getLastLocation()
-                            .addOnSuccessListener(new OnSuccessListener<Location>() {
-                                @Override
-                                public void onSuccess(Location location) {
-                                    // Got last known location. In some rare situations this can be null.
-                                    if (location != null) {
-                                        Log.println(Log.VERBOSE, "LOCA2", location.toString());
-                                        send_data(location.getLatitude(), location.getLongitude());
-                                    }
-                                }
-                            });
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+        LocationCallback locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult != null) {
+                    if (locationResult == null) {
+                        return;
+                    }
+                    //Showing the latitude, longitude and accuracy on the home screen.
+                    for (Location location : locationResult.getLocations()) {
+                        send_data(location.getLatitude(), location.getLongitude());
                     }
                 }
             }
         };
-        thread_location.start();
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
     }
 
     @Override
