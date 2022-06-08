@@ -70,8 +70,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         thread.start();
 
-        new ConnectTask().execute("");
-
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -116,6 +114,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
             }
         };
+
+        new ConnectTask().execute("");
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
     }
 
@@ -154,7 +154,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         @Override
         protected TcpClient doInBackground(String... message) {
-
+            try {
+                Thread.sleep(1 000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             //we create a TCPClient object
             mTcpClient = new TcpClient(new TcpClient.OnMessageReceived() {
                 @Override
