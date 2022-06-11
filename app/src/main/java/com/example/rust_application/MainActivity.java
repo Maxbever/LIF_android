@@ -109,7 +109,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     }
                     //Showing the latitude, longitude and accuracy on the home screen.
                     for (Location location : locationResult.getLocations()) {
-                        send_data(location.getLatitude(), location.getLongitude());
+                        send_data(location.getLatitude(), location.getLongitude(), location.getAltitude());
                     }
                 }
             }
@@ -155,7 +155,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         @Override
         protected TcpClient doInBackground(String... message) {
             try {
-                Thread.sleep(1 000);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -188,10 +188,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
-    private void send_data(double latitude, double longitude){
+    private void send_data(double latitude, double longitude, double altitude){
         if (mTcpClient != null) {
             mTcpClient.sendMessage("attach GPS_DATA admin");
-            mTcpClient.sendMessage("out ("+latitude+","+longitude+","+light+")");
+            mTcpClient.sendMessage("out ("+latitude+","+longitude+","+altitude+","+light+")");
         }
     }
 }
