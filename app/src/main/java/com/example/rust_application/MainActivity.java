@@ -1,7 +1,6 @@
 package com.example.rust_application;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.Sensor;
@@ -9,8 +8,6 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -31,24 +28,40 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnSuccessListener;
 
-import java.text.MessageFormat;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
+    static {
+        System.loadLibrary("lif_android");
+    }
+
+    LocationRequest locationRequest;
+    TextView textViewIpAddress;
     private FusedLocationProviderClient fusedLocationClient;
     private SensorManager sensorManager;
     private Sensor pressure;
     private TcpClient mTcpClient;
     private float light;
     private String ipAddress;
-    LocationRequest locationRequest;
 
-    static {
-        System.loadLibrary("lif_android");
-    }
-
-    TextView textViewIpAddress;
+    /**
+     * A native method that is implemented by the 'rust' native library,
+     * which is packaged with this application.
+     *
+     * @param ipAddress
+     */
+    public static native void main(String ipAddress);
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -95,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             });
         }
 
-        locationRequest = locationRequest.create();
+        locationRequest = LocationRequest.create();
         locationRequest.setInterval(1000);
         locationRequest.setFastestInterval(50);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -133,13 +146,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         sensorManager.unregisterListener(this);
     }
 
-    /**
-     * A native method that is implemented by the 'rust' native library,
-     * which is packaged with this application.
-     * @param ipAddress
-     */
-    public static native void main(String ipAddress);
-
     @Override
     public final void onAccuracyChanged(Sensor sensor, int accuracy) {
         // Do something here if sensor accuracy changes.
@@ -147,7 +153,32 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public final void onSensorChanged(SensorEvent event) {
-         light = event.values[0];
+        light = event.values[0];
+    }
+
+    private void send_data(double latitude, double longitude, double altitude) {
+        if (mTcpClient != null) {
+            Cipher cipher = null;
+            Cipher cipher2 = null;
+            byte[] encryptedAttach = new byte[0];
+            byte[] encryptedOut = new byte[0];
+
+            String key = "secret_key_encry";
+            Key aesKey = new SecretKeySpec(key.getBytes(), "AES");
+
+            try {
+                cipher = Cipher.getInstance("AES/GCM/NoPadding");
+                cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+                cipher2 = Cipher.getInstance("AES/GCM/NoPadding");
+                cipher2.init(Cipher.ENCRYPT_MODE, aesKey);
+                encryptedAttach = cipher.doFinal("attach GPS_DATA admin".getBytes(StandardCharsets.UTF_8));
+                encryptedOut = cipher2.doFinal(("out (" + latitude + "," + longitude + "," + altitude + "," + light + ")").getBytes(StandardCharsets.UTF_8));
+            } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
+                e.printStackTrace();
+            }
+            mTcpClient.sendMessage(Arrays.toString(encryptedAttach));
+            mTcpClient.sendMessage(Arrays.toString(encryptedOut));
+        }
     }
 
     public class ConnectTask extends AsyncTask<String, String, TcpClient> implements TcpClient.OnMessageReceived {
@@ -178,20 +209,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             super.onProgressUpdate(values);
             //response received from server
             Log.d("LOCA2", "response " + values[0]);
-            //process server response here....
-
         }
 
         @Override
         public void messageReceived(String message) {
             Log.d("LOCA2", "response :" + message);
-        }
-    }
-
-    private void send_data(double latitude, double longitude, double altitude){
-        if (mTcpClient != null) {
-            mTcpClient.sendMessage("attach GPS_DATA admin");
-            mTcpClient.sendMessage("out ("+latitude+","+longitude+","+altitude+","+light+")");
         }
     }
 }

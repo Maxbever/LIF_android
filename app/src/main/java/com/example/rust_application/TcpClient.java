@@ -14,6 +14,7 @@ public class TcpClient {
 
     public static final String TAG = "LOCA2";
     public static final int SERVER_PORT = 9000;
+    private final String ipAddress;
     // message to send to the server
     private String mServerMessage;
     // sends message received notifications
@@ -24,14 +25,13 @@ public class TcpClient {
     private PrintWriter mBufferOut;
     // used to read messages from the server
     private BufferedReader mBufferIn;
-    private final String ipAddress;
 
     /**
      * Constructor of the class. OnMessagedReceived listens for the messages received from server
      */
     public TcpClient(OnMessageReceived listener, String ipAddressParams) {
         mMessageListener = listener;
-        ipAddress= ipAddressParams;
+        ipAddress = ipAddressParams;
     }
 
     /**
@@ -125,7 +125,7 @@ public class TcpClient {
     //Declare the interface. The method messageReceived(String message) will must be implemented in the Activity
     //class at on AsyncTask doInBackground
     public interface OnMessageReceived {
-        public void messageReceived(String message);
+        void messageReceived(String message);
     }
 
 }
