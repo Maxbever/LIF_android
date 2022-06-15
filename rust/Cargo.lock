@@ -474,6 +474,7 @@ checksum = "349d5a591cd28b49e1d1037471617a32ddcda5731b99419008085f72d5a53836"
 name = "lif_android"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "android_logger",
  "jni",
  "log 0.4.17",
@@ -709,9 +710,9 @@ dependencies = [
 
 [[package]]
 name = "rustupolis_server"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "725f371b2427f827c905c2227a40000bd8e653f590c0f4b1064265d1f6b853d3"
+checksum = "490d22cccdee54396c9a816f870368ab2f2b5ca4420e4cc63fce67f5be53f703"
 dependencies = [
  "aes-gcm",
  "crossbeam",

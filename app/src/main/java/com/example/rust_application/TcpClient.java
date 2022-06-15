@@ -4,11 +4,14 @@ import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Arrays;
 
 public class TcpClient {
 
@@ -18,19 +21,17 @@ public class TcpClient {
     // message to send to the server
     private String mServerMessage;
     // sends message received notifications
-    private OnMessageReceived mMessageListener = null;
     // while this is true, the server will continue running
     private boolean mRun = false;
     // used to send messages
-    private PrintWriter mBufferOut;
+    private DataOutputStream dOut;
     // used to read messages from the server
     private BufferedReader mBufferIn;
 
     /**
      * Constructor of the class. OnMessagedReceived listens for the messages received from server
      */
-    public TcpClient(OnMessageReceived listener, String ipAddressParams) {
-        mMessageListener = listener;
+    public TcpClient(String ipAddressParams) {
         ipAddress = ipAddressParams;
     }
 
@@ -39,14 +40,17 @@ public class TcpClient {
      *
      * @param message text entered by client
      */
-    public void sendMessage(final String message) {
+    public void sendMessage(final byte [] message) {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                if (mBufferOut != null) {
-                    Log.d(TAG, "Sending: " + message);
-                    mBufferOut.println(message);
-                    mBufferOut.flush();
+                if (dOut != null) {
+                    try {
+                        dOut.flush();
+                        dOut.write(message);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         };
@@ -61,14 +65,17 @@ public class TcpClient {
 
         mRun = false;
 
-        if (mBufferOut != null) {
-            mBufferOut.flush();
-            mBufferOut.close();
+        if (dOut != null) {
+            try {
+                dOut.flush();
+                dOut.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
-        mMessageListener = null;
         mBufferIn = null;
-        mBufferOut = null;
+        dOut = null;
         mServerMessage = null;
     }
 
@@ -88,7 +95,7 @@ public class TcpClient {
             try {
 
                 //sends the message to the server
-                mBufferOut = new PrintWriter(new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
+                dOut = new DataOutputStream(socket.getOutputStream());
 
                 //receives the message which the server sends back
                 mBufferIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -96,14 +103,7 @@ public class TcpClient {
 
                 //in this while the client listens for the messages sent by the server
                 while (mRun) {
-
                     mServerMessage = mBufferIn.readLine();
-
-                    if (mServerMessage != null && mMessageListener != null) {
-                        //call the method messageReceived from MyActivity class
-                        mMessageListener.messageReceived(mServerMessage);
-                    }
-
                 }
 
                 Log.d("RESPONSE FROM SERVER", "S: Received Message: '" + mServerMessage + "'");
@@ -121,11 +121,4 @@ public class TcpClient {
         }
 
     }
-
-    //Declare the interface. The method messageReceived(String message) will must be implemented in the Activity
-    //class at on AsyncTask doInBackground
-    public interface OnMessageReceived {
-        void messageReceived(String message);
-    }
-
 }

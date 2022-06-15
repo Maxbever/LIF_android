@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rustupolis_server = "0.0.7"
+rustupolis_server = "0.0.8"
 jni = "0.5.2"
 android_logger = "0.11.0"
 log = "0.4.8"
+aes-gcm = "0.9.4"
 
 [lib]
 name = "lif_android"

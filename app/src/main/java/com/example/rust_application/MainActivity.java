@@ -29,19 +29,9 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.Key;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.SecretKeySpec;
-
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
+    private static final String TAG = "LOCA2";
+
     static {
         System.loadLibrary("lif_android");
     }
@@ -62,6 +52,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
      * @param ipAddress
      */
     public static native void main(String ipAddress);
+
+    public static native byte[] encrypt(String text);
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -158,30 +150,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private void send_data(double latitude, double longitude, double altitude) {
         if (mTcpClient != null) {
-            Cipher cipher = null;
-            Cipher cipher2 = null;
-            byte[] encryptedAttach = new byte[0];
-            byte[] encryptedOut = new byte[0];
+            String data = "out (" + latitude + "," + longitude + "," + altitude + "," + light + ")";
+            String attach = "attach GPS_DATA admin";
 
-            String key = "secret_key_encry";
-            Key aesKey = new SecretKeySpec(key.getBytes(), "AES");
-
-            try {
-                cipher = Cipher.getInstance("AES/GCM/NoPadding");
-                cipher.init(Cipher.ENCRYPT_MODE, aesKey);
-                cipher2 = Cipher.getInstance("AES/GCM/NoPadding");
-                cipher2.init(Cipher.ENCRYPT_MODE, aesKey);
-                encryptedAttach = cipher.doFinal("attach GPS_DATA admin".getBytes(StandardCharsets.UTF_8));
-                encryptedOut = cipher2.doFinal(("out (" + latitude + "," + longitude + "," + altitude + "," + light + ")").getBytes(StandardCharsets.UTF_8));
-            } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
-                e.printStackTrace();
-            }
-            mTcpClient.sendMessage(Arrays.toString(encryptedAttach));
-            mTcpClient.sendMessage(Arrays.toString(encryptedOut));
+            mTcpClient.sendMessage(encrypt(attach));
+            mTcpClient.sendMessage(encrypt(data));
         }
     }
 
-    public class ConnectTask extends AsyncTask<String, String, TcpClient> implements TcpClient.OnMessageReceived {
+    public class ConnectTask extends AsyncTask<String, String, TcpClient> {
 
         @Override
         protected TcpClient doInBackground(String... message) {
@@ -191,16 +168,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 e.printStackTrace();
             }
             //we create a TCPClient object
-            mTcpClient = new TcpClient(new TcpClient.OnMessageReceived() {
-                @Override
-                //here the messageReceived method is implemented
-                public void messageReceived(String message) {
-                    //this method calls the onProgressUpdate
-                    publishProgress(message);
-                }
-            }, ipAddress);
+            mTcpClient = new TcpClient(ipAddress);
             mTcpClient.run();
-
             return null;
         }
 
@@ -209,11 +178,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             super.onProgressUpdate(values);
             //response received from server
             Log.d("LOCA2", "response " + values[0]);
-        }
-
-        @Override
-        public void messageReceived(String message) {
-            Log.d("LOCA2", "response :" + message);
         }
     }
 }
